@@ -1,82 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'main.dart'; // Ensure this points to your file containing the Login/MyApp class
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 1. Get the current user from Firebase
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    // 2. Create a Username from the Email (e.g., "john@gmail.com" -> "john")
+    // If user is null, it shows "Guest"
+    String username = "Guest";
+    if (user?.email != null) {
+      username = user!.email!.split('@')[0];
+    }
+
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade500,
       appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text("My Profile"),
+        backgroundColor: Colors.deepPurple.shade100,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      body: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 20),
-            // Profile Icon
-            const CircleAvatar(
+            // Profile Picture Placeholder
+            CircleAvatar(
               radius: 50,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, size: 60, color: Colors.deepPurple),
+              backgroundColor: Colors.deepPurple.shade500,
+              child: const Icon(Icons.person, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 20),
 
-            // Username Display
+            // Display Username
             const Text(
-              'Username',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              "Username",
+              style: TextStyle(color: Colors.white, fontSize: 14),
             ),
-            const Text(
-              'LitWorm_User', // This will be dynamic once you add Firebase
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
+            Text(
+              username,
+              style: const TextStyle(
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
+
+            // Display Full Email below
+            Text(
+              user?.email ?? "",
+              style: TextStyle(color: Colors.deepPurple.shade100, fontSize: 14),
+            ),
+
             const SizedBox(height: 40),
 
-            // Reset Password Button
+            // FIXED: Logout button
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.orangeAccent,
-                foregroundColor: Colors.black,
-              ),
-              onPressed: () {
-                // Show a confirmation dialog
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Reset Password'),
-                    content: const Text('Would you like to receive a password reset link via email?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // Show a "Success" snackbar at the bottom
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Reset link sent to your email!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        },
-                        child: const Text('Send Link'),
-                      ),
-                    ],
-                  ),
-                );
+              onPressed: () async {
+                // A. Sign out from Firebase
+                await FirebaseAuth.instance.signOut();
+
+                // B. Force navigation back to the Login Screen (MyApp)
+                // and clear the entire navigation history
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MyApp()),
+                        (route) => false,
+                  );
+                }
               },
-              icon: const Icon(Icons.lock_reset),
-              label: const Text('Reset Password'),
+              icon: const Icon(Icons.logout),
+              label: const Text("Logout"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              ),
             ),
           ],
         ),

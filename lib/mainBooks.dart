@@ -1,9 +1,9 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'viewBook.dart';
 import 'createBook.dart';
 import 'profile.dart';
+import 'main.dart'; // Assuming your Login Screen is in main.dart
 
 // 1. Book class to hold our data
 class Book {
@@ -96,7 +96,14 @@ class _MyHomePageState extends State<MyHomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              // FIX: Navigate back to Login and clear stack to prevent black screen
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const MyApp()), // Or your Login class
+                    (route) => false,
+              );
+            },
           ),
         ],
       ),
@@ -108,14 +115,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
           return Card(
             child: ListTile(
-              // --- LEADING: BOOK LOGO ---
               leading: CircleAvatar(
                 backgroundColor: Colors.deepPurple.shade100,
-                // If imageUrl exists, show the file. Otherwise, show nothing (null)
                 backgroundImage: book.imageUrl != null
                     ? FileImage(File(book.imageUrl!))
                     : null,
-                // If imageUrl is null, show the default book icon
                 child: book.imageUrl == null
                     ? const Icon(Icons.book, color: Colors.deepPurple)
                     : null,
@@ -136,14 +140,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   }
                 }
               },
-              // --- TRAILING: FIXED OVERFLOW VERSION ---
               trailing: SizedBox(
-                width: 60, // Fixed width helps prevent layout shifts
+                width: 60,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Chapter Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -159,7 +161,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
-                    // Star Toggle with minimal padding
                     GestureDetector(
                       onTap: () {
                         setState(() {
@@ -201,7 +202,9 @@ class _MyHomePageState extends State<MyHomePage> {
             );
             setState(() { _selectedIndex = 0; });
           } else {
-            setState(() { _selectedIndex = index; });
+            setState(() {
+              _selectedIndex = index;
+            });
           }
         },
         items: const [
