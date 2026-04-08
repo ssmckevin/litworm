@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'viewBook.dart';
 import 'createBook.dart';
 import 'profile.dart';
 
-// 1. Create a simple class to hold our book data
+// 1. Book class to hold our data
 class Book {
   String title;
   String author;
@@ -12,8 +14,18 @@ class Book {
   bool isFavorite;
   bool isRead;
   int currentChapter;
+  String? imageUrl;
 
-  Book({required this.title, required this.author, required this.genre, required this.year, this.isFavorite = false, this.isRead = false, this.currentChapter = 0});
+  Book({
+    required this.title,
+    required this.author,
+    required this.genre,
+    required this.year,
+    this.isFavorite = false,
+    this.isRead = false,
+    this.currentChapter = 1,
+    this.imageUrl,
+  });
 }
 
 class MyHomePage extends StatefulWidget {
@@ -28,7 +40,6 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
-  // 2. Create a list of books to display
   final List<Book> myBooks = [
     Book(title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Classic', year: 1925),
     Book(title: '1984', author: 'George Orwell', genre: 'Dystopian', year: 1949),
@@ -89,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: ListView.builder( // 3. Use .builder to handle our list automatically
+      body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: myBooks.length,
         itemBuilder: (context, index) {
@@ -97,86 +108,104 @@ class _MyHomePageState extends State<MyHomePage> {
 
           return Card(
             child: ListTile(
-              leading: Icon(
-                book.isFavorite ? Icons.star : Icons.book,
-                color: book.isFavorite ? Colors.orange : Colors.deepPurple,
+              // --- LEADING: BOOK LOGO ---
+              leading: CircleAvatar(
+                backgroundColor: Colors.deepPurple.shade100,
+                // If imageUrl exists, show the file. Otherwise, show nothing (null)
+                backgroundImage: book.imageUrl != null
+                    ? FileImage(File(book.imageUrl!))
+                    : null,
+                // If imageUrl is null, show the default book icon
+                child: book.imageUrl == null
+                    ? const Icon(Icons.book, color: Colors.deepPurple)
+                    : null,
               ),
-              title: Text(book.title),
-              // Updated subtitle to show Author, Genre, and Year
+              title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('${book.author} • ${book.genre}\nReleased: ${book.year}'),
-              isThreeLine: true, // Makes the card taller to fit the extra line
-              // 4. The Logic: Only allow favoriting if the "Favorites" tab is active
+              isThreeLine: true,
               onTap: () async {
-                if (_selectedIndex == 0) { // 0 is the Favorites tab
-                  setState(() {
-                    book.isFavorite = !book.isFavorite; // Toggles true/false
-                  });
-                }
-                else if (_selectedIndex == 1) {
-                  // 1 is the Edit tab
-                  // Navigate to ViewBookPage and wait for it to return
+                if (_selectedIndex == 1) {
                   final result = await Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => ViewBookPage(book: book),
-                    ),
+                    MaterialPageRoute(builder: (context) => ViewBookPage(book: book)),
                   );
-
-                  // Handle the different results
                   if (result == 'delete') {
-                    setState(() {
-                      myBooks.removeAt(index); // Removes the book from the list
-                    });
+                    setState(() { myBooks.removeAt(index); });
                   } else if (result == true) {
-                    setState(() {}); // Just refresh if it was a normal save
+                    setState(() {});
                   }
                 }
               },
-              trailing: Icon(
-                book.isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: book.isFavorite ? Colors.red : Colors.grey,
+              // --- TRAILING: FIXED OVERFLOW VERSION ---
+              trailing: SizedBox(
+                width: 60, // Fixed width helps prevent layout shifts
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Chapter Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Ch. ${book.currentChapter}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple.shade900,
+                        ),
+                      ),
+                    ),
+                    // Star Toggle with minimal padding
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          book.isFavorite = !book.isFavorite;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4, right: 4),
+                        child: Icon(
+                          book.isFavorite ? Icons.star : Icons.star_border,
+                          color: book.isFavorite ? Colors.orange : Colors.grey,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
         },
       ),
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: (index) async { // Added 'async' here
-            if (index == 2) {
-            // 1. Open the CreateBookPage
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        onTap: (index) async {
+          if (index == 2) {
             final Book? newBook = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateBookPage()),
+              context,
+              MaterialPageRoute(builder: (context) => const CreateBookPage()),
             );
-
-            // 2. If a book was actually created, add it to our list
             if (newBook != null) {
-              setState(() {
-                myBooks.insert(0, newBook); // Adds the new book to the top of the list
-              });
+              setState(() { myBooks.insert(0, newBook); });
             }
           } else if (index == 3) {
-              // 1. Open the Profile Page
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-              // 2. When they come back, reset the selection to the library (index 0)
-              // or keep it on profile if you prefer.
-              setState(() {
-                _selectedIndex = 0;
-              });
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
+            );
+            setState(() { _selectedIndex = 0; });
           } else {
-            // Otherwise, just change the tab highlight
-            setState(() {
-              _selectedIndex = index;
-            });
+            setState(() { _selectedIndex = index; });
           }
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
+          BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Library'),
           BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Edit'),
           BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'New Book'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
