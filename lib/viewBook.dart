@@ -1,38 +1,44 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'dart:io'; // Required for File
-import 'package:image_picker/image_picker.dart'; // Required for picking images
-import 'mainBooks.dart'; // To access the Book class
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ViewBookPage extends StatefulWidget {
-  final Book book;
-  const ViewBookPage({super.key, required this.book});
+  final String docId;
+  final Map<String, dynamic> data;
+
+  const ViewBookPage({super.key, required this.docId, required this.data});
 
   @override
   State<ViewBookPage> createState() => _ViewBookPageState();
 }
 
 class _ViewBookPageState extends State<ViewBookPage> {
-  // Controllers for text fields
   late TextEditingController _titleController;
   late TextEditingController _authorController;
+  late TextEditingController _genreController; // Added
+  late TextEditingController _yearController;  // Added
   late TextEditingController _chapterController;
+  String? _imageUrl;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.book.title);
-    _authorController = TextEditingController(text: widget.book.author);
-    _chapterController = TextEditingController(text: widget.book.currentChapter.toString());
+    // Initialize controllers with existing data from Firestore
+    _titleController = TextEditingController(text: widget.data['title']);
+    _authorController = TextEditingController(text: widget.data['author']);
+    _genreController = TextEditingController(text: widget.data['genre'] ?? "General");
+    _yearController = TextEditingController(text: widget.data['year']?.toString() ?? "2024");
+    _chapterController = TextEditingController(text: widget.data['currentChapter']?.toString() ?? "1");
+    _imageUrl = widget.data['imageUrl'];
   }
 
-  // Function to pick image from gallery
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       setState(() {
-        widget.book.imageUrl = image.path; // Save the path to the book object
+        _imageUrl = image.path;
       });
     }
   }
@@ -40,12 +46,18 @@ class _ViewBookPageState extends State<ViewBookPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.deepPurple.shade500, // Matching mainBooks background
       appBar: AppBar(
         title: const Text("Edit Book"),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => Navigator.pop(context, 'delete'),
+            onPressed: () {
+              // Delete from Firestore
+              FirebaseFirestore.instance.collection('books').doc(widget.docId).delete();
+              Navigator.pop(context);
+            },
           )
         ],
       ),
@@ -53,65 +65,102 @@ class _ViewBookPageState extends State<ViewBookPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // --- IMAGE PICKER SECTION ---
+            const SizedBox(height: 10),
             GestureDetector(
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 60,
                 backgroundColor: Colors.deepPurple.shade100,
-                backgroundImage: widget.book.imageUrl != null
-                    ? FileImage(File(widget.book.imageUrl!))
-                    : null,
-                child: widget.book.imageUrl == null
-                    ? const Icon(Icons.add_a_photo, size: 40, color: Colors.deepPurple)
-                    : null,
+                backgroundImage: _imageUrl != null ? FileImage(File(_imageUrl!)) : null,
+                child: _imageUrl == null ? const Icon(Icons.add_a_photo, color: Colors.deepPurple) : null,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text("Tap to change cover", style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
 
-            // --- TEXT FIELDS ---
+            // Title Field
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: "Book Title",
                 filled: true,
-                fillColor: Colors.white
+                fillColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Author Field
             TextField(
               controller: _authorController,
               decoration: const InputDecoration(
-                  labelText: "Author",
-                  filled: true,
-                  fillColor: Colors.white
+                labelText: "Author",
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Genre Field
             TextField(
-              controller: _chapterController,
-              keyboardType: TextInputType.number,
+              controller: _genreController,
               decoration: const InputDecoration(
-                  labelText: "Current Chapter",
-                  filled: true,
-                  fillColor: Colors.white
+                labelText: "Genre",
+                filled: true,
+                fillColor: Colors.white,
               ),
+            ),
+            const SizedBox(height: 12),
+
+            // Year and Chapter Row
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _yearController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Year Released",
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _chapterController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Current Chapter",
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
 
+            // Save Button
             ElevatedButton(
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-              onPressed: () {
-                // Save changes back to the object
-                widget.book.title = _titleController.text;
-                widget.book.author = _authorController.text;
-                widget.book.currentChapter = int.tryParse(_chapterController.text) ?? 1;
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+              ),
+              onPressed: () async {
+                // Update the specific document in Firestore
+                await FirebaseFirestore.instance.collection('books').doc(widget.docId).update({
+                  'title': _titleController.text,
+                  'author': _authorController.text,
+                  'genre': _genreController.text,
+                  'year': int.tryParse(_yearController.text) ?? 2024,
+                  'currentChapter': int.tryParse(_chapterController.text) ?? 1,
+                  'imageUrl': _imageUrl,
+                });
 
-                Navigator.pop(context, true); // Return true to refresh main list
+                if (context.mounted) Navigator.pop(context);
               },
-              child: const Text("Save Changes"),
+              child: const Text("Save Changes", style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
